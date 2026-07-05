@@ -1,10 +1,6 @@
 <template>
   <div :class="['chatbot-container', { 'is-open': isOpen }]">
-    <div
-      v-if="!isOpen"
-      class="ai-chat-btn cursor-pointer"
-      @click="isOpen = true"
-    >
+    <div v-if="!isOpen" class="ai-chat-btn cursor-pointer" @click="isOpen = true">
       <div class="row items-center no-wrap">
         <span class="text-h4 q-mr-sm">🤖</span>
         <div class="column text-left text-black">
@@ -26,18 +22,15 @@
       </q-card-section>
 
       <q-card-section class="chat-messages col overflow-auto q-pa-md">
-        <div 
-          v-for="(msg, index) in messages" 
-          :key="index"
-          :class="['message-wrapper q-mb-sm', msg.isUser ? 'justify-end' : 'justify-start']"
-          class="row"
-        >
-          <q-chat-message
-            :text="[msg.text]"
-            :sent="msg.isUser"
-            :bg-color="msg.isUser ? 'primary' : 'grey-3'"
-            :text-color="msg.isUser ? 'white' : 'black'"
-          />
+        <div v-for="(msg, index) in messages" :key="index"
+          :class="['message-wrapper q-mb-sm', msg.isUser ? 'justify-end' : 'justify-start']" class="row">
+          <q-chat-message :sent="msg.isUser" :bg-color="msg.isUser ? 'primary' : 'grey-3'"
+            :text-color="msg.isUser ? 'white' : 'black'">
+            <!-- Pesan user: plain text, tidak perlu di-parse markdown -->
+            <div v-if="msg.isUser" class="chat-text-plain">{{ msg.text }}</div>
+            <!-- Pesan AI: di-render sebagai markdown (bold, list, heading) agar rapi -->
+            <div v-else class="chat-text-markdown" v-html="renderMarkdown(msg.text)"></div>
+          </q-chat-message>
         </div>
         <div v-if="isLoading" class="row justify-start q-mt-sm">
           <q-spinner-dots color="primary" size="2em" />
@@ -46,80 +39,30 @@
 
       <q-separator />
       <q-card-section class="q-pa-sm row items-center gap-xs no-wrap overflow-auto">
-        <q-btn 
-          dense
-          flat 
-          round 
-          :color="isRecording ? 'red' : 'grey-7'" 
-          :icon="isRecording ? 'mic_off' : 'keyboard_voice'"
-          @click="toggleSpeechRecognition"
-        >
+        <q-btn dense flat round :color="isRecording ? 'red' : 'grey-7'"
+          :icon="isRecording ? 'mic_off' : 'keyboard_voice'" @click="toggleSpeechRecognition">
           <q-tooltip>Suara ke Teks (Mic)</q-tooltip>
         </q-btn>
 
-        <q-btn 
-          dense
-          flat 
-          round 
-          color="grey-7" 
-          icon="audio_file"
-          @click="triggerAudioUpload"
-        >
+        <q-btn dense flat round color="grey-7" icon="audio_file" @click="triggerAudioUpload">
           <q-tooltip>Upload File Audio (.mp3)</q-tooltip>
         </q-btn>
 
-        <q-btn 
-          dense
-          flat 
-          round 
-          color="grey-7" 
-          icon="image"
-          @click="triggerImageUpload"
-        >
+        <q-btn dense flat round color="grey-7" icon="image" @click="triggerImageUpload">
           <q-tooltip>Upload Gambar Masakan</q-tooltip>
         </q-btn>
 
-        <q-btn 
-          dense
-          flat 
-          round 
-          color="grey-7" 
-          icon="description"
-          @click="triggerDocUpload"
-        >
+        <q-btn dense flat round color="grey-7" icon="description" @click="triggerDocUpload">
           <q-tooltip>Upload Dokumen Resep</q-tooltip>
         </q-btn>
-        
-        <input 
-          type="file" 
-          ref="audioInput" 
-          accept="audio/*" 
-          style="display: none" 
-          @change="handleAudioUploaded"
-        />
-        <input 
-          type="file" 
-          ref="imageInput" 
-          accept="image/*" 
-          style="display: none" 
-          @change="handleImageUploaded"
-        />
-        <input 
-          type="file" 
-          ref="docInput" 
-          accept=".pdf,.doc,.docx,.txt" 
-          style="display: none" 
-          @change="handleDocUploaded"
-        />
 
-        <q-input
-          v-model="inputMessage"
-          dense
-          outlined
-          placeholder="Tanya resep / langkah masak..."
-          class="col"
-          @keyup.enter="sendTextMessage"
-        />
+        <input type="file" ref="audioInput" accept="audio/*" style="display: none" @change="handleAudioUploaded" />
+        <input type="file" ref="imageInput" accept="image/*" style="display: none" @change="handleImageUploaded" />
+        <input type="file" ref="docInput" accept=".pdf,.doc,.docx,.txt" style="display: none"
+          @change="handleDocUploaded" />
+
+        <q-input v-model="inputMessage" dense outlined placeholder="Tanya resep / langkah masak..." class="col"
+          @keyup.enter="sendTextMessage" />
 
         <q-btn flat round color="primary" icon="send" @click="sendTextMessage" />
       </q-card-section>
@@ -130,7 +73,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
-import api from '../services/api';
+import MarkdownIt from 'markdown-it';
+import DOMPurify from 'dompurify';
+import api from 'src/services/api';
 
 interface Message {
   text: string;
@@ -153,6 +98,20 @@ const docInput = ref<HTMLInputElement | null>(null);
 const messages = ref<Message[]>([
   { text: 'Halo! Saya asisten masakmu. Ada yang bisa dibantu untuk menu hari ini?', isUser: false }
 ]);
+
+// Parser markdown untuk respons AI: bold, list, heading, dsb jadi HTML rapi.
+// `breaks: true` supaya newline tunggal dari Gemini tetap jadi <br>.
+const md = new MarkdownIt({
+  breaks: true,
+  linkify: true,
+});
+
+// Sanitasi HTML hasil parsing sebelum di-render via v-html,
+// karena konten berasal dari API eksternal (Gemini) — mencegah risiko XSS.
+const renderMarkdown = (text: string): string => {
+  const rawHtml = md.render(text ?? '');
+  return DOMPurify.sanitize(rawHtml);
+};
 
 // Berikan respon dinamis saat user mengganti wilayah kuliner di dashboard
 watch(() => props.currentRegion, (newRegion) => {
@@ -177,7 +136,7 @@ const sendTextMessage = async (): Promise<void> => {
     const response = await api.post('/generate-text', {
       prompt: `Context Kategori Kulinari: ${props.currentRegion}. Pertanyaan: ${userText}. Jawab dengan singkat, ramah, dan format yang rapi.`
     });
-    
+
     messages.value.push({ text: response.data.output, isUser: false });
   } catch (error: any) {
     const errMsg = error.response?.data?.error || 'Gagal mendapatkan respon dari Chef AI.';
@@ -393,5 +352,53 @@ const handleDocUploaded = async (event: Event): Promise<void> => {
   border-radius: 0;
   font-weight: 900;
   box-shadow: 2px 2px 0px black;
+}
+
+/* Styling untuk konten markdown hasil respons AI agar mudah dibaca */
+.chat-text-plain {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-text-markdown {
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.chat-text-markdown :deep(p) {
+  margin: 0 0 8px 0;
+}
+
+.chat-text-markdown :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.chat-text-markdown :deep(strong) {
+  font-weight: 700;
+}
+
+.chat-text-markdown :deep(ul),
+.chat-text-markdown :deep(ol) {
+  margin: 4px 0 8px 0;
+  padding-left: 20px;
+}
+
+.chat-text-markdown :deep(li) {
+  margin-bottom: 4px;
+}
+
+.chat-text-markdown :deep(h1),
+.chat-text-markdown :deep(h2),
+.chat-text-markdown :deep(h3) {
+  font-size: 14px;
+  margin: 8px 0 4px 0;
+}
+
+.chat-text-markdown :deep(code) {
+  background-color: rgba(0, 0, 0, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
 }
 </style>
