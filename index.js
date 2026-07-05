@@ -12,7 +12,7 @@ app.use(cors());
 const storage = multer.memoryStorage();
 const upload = multer({
 	storage: storage,
-	limits: { fileSize: 10 * 1024 * 1024 }, // Batasi maksimal file 10MB
+	limits: { fileSize: 4 * 1024 * 1024 }, // Batasi maksimal file 10MB
 });
 
 const GEMINI_MODEL = process.env.MODEL || 'gemini-2.5-flash-lite';
@@ -48,12 +48,21 @@ const formatMultimodalPayload = (prompt, defaultPrompt, file) => {
 
 // Helper function untuk mengekstrak pesan error yang rapi dari Gemini API
 const extractErrorMessage = (error, defaultMsg) => {
+	// Tangani khusus error 503 (Overloaded/High Demand)
+	if (error.status === 503) {
+		return 'Maaf, layanan AI saat ini sedang sibuk (tingginya permintaan). Silakan coba beberapa saat lagi.';
+	}
+
 	let msg = error.message || defaultMsg;
 	try {
-		// Jika error message adalah string JSON dari Google API
-		const parsed = JSON.parse(msg);
-		if (parsed.error && parsed.error.message) {
-			msg = parsed.error.message;
+		// Jika pesan error diawali dengan teks seperti "ApiError: ", cari posisi awal JSON
+		const jsonStart = msg.indexOf('{');
+		if (jsonStart !== -1) {
+			const jsonStr = msg.substring(jsonStart);
+			const parsed = JSON.parse(jsonStr);
+			if (parsed.error && parsed.error.message) {
+				msg = parsed.error.message;
+			}
 		}
 	} catch (e) {
 		// Abaikan jika bukan JSON
@@ -62,9 +71,10 @@ const extractErrorMessage = (error, defaultMsg) => {
 };
 
 // --- ENDPOINTS ---
+const router = express.Router();
 
 // Generate dari Teks
-app.post('/generate-text', async (req, res) => {
+router.post('/generate-text', async (req, res) => {
 	const { prompt } = req.body;
 	if (!prompt)
 		return res.status(400).json({ error: 'Prompt is required' });
@@ -84,7 +94,7 @@ app.post('/generate-text', async (req, res) => {
 });
 
 // Generate dari Image
-app.post(
+router.post(
 	'/generate-from-image',
 	upload.single('image'),
 	async (req, res) => {
@@ -114,7 +124,7 @@ app.post(
 );
 
 // Generate dari Document
-app.post(
+router.post(
 	'/generate-from-document',
 	upload.single('document'),
 	async (req, res) => {
@@ -144,7 +154,7 @@ app.post(
 );
 
 // Generate dari Audio
-app.post(
+router.post(
 	'/generate-from-audio',
 	upload.single('audio'),
 	async (req, res) => {
@@ -173,6 +183,13 @@ app.post(
 	},
 );
 
-app.listen(port, () => {
-	console.log(`Server is running on port http://localhost:${port}`);
-});
+app.use('/api', router);
+app.use('/.netlify/functions/api', router);
+
+if (process.env.NODE_ENV !== 'production' && !process.env.NETLIFY) {
+	app.listen(port, () => {
+		console.log(`Server is running on port http://localhost:${port}`);
+	});
+}
+
+export default app;

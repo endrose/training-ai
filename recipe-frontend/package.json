@@ -12,6 +12,7 @@
     "@quasar/extras": "^2.0.2",
     "axios": "^1.18.1",
     "quasar": "^2.21.0",
+    "training-ai": "file:..",
     "vue": "^3.5.39"
   },
   "devDependencies": {

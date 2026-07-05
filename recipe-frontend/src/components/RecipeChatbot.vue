@@ -130,7 +130,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
-import axios from 'axios';
+import api from '../services/api';
 
 interface Message {
   text: string;
@@ -174,7 +174,7 @@ const sendTextMessage = async (): Promise<void> => {
   isLoading.value = true;
 
   try {
-    const response = await axios.post('http://localhost:3000/generate-text', {
+    const response = await api.post('/generate-text', {
       prompt: `Context Kategori Kulinari: ${props.currentRegion}. Pertanyaan: ${userText}. Jawab dengan singkat, ramah, dan format yang rapi.`
     });
     
@@ -253,7 +253,7 @@ const handleAudioUploaded = async (event: Event): Promise<void> => {
   formData.append('prompt', `Saya sedang memasak makanan kategori ${props.currentRegion}. Jawab pertanyaan dari audio ini dengan instruksi yang to-the-point.`);
 
   try {
-    const response = await axios.post('http://localhost:3000/generate-from-audio', formData, {
+    const response = await api.post('/generate-from-audio', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     messages.value.push({ text: response.data.output, isUser: false });
@@ -284,7 +284,7 @@ const handleImageUploaded = async (event: Event): Promise<void> => {
   formData.append('prompt', `Analisa gambar makanan/bahan ini dalam konteks kuliner ${props.currentRegion}. Apa nama masakannya atau apa resepnya?`);
 
   try {
-    const response = await axios.post('http://localhost:3000/generate-from-image', formData, {
+    const response = await api.post('/generate-from-image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     messages.value.push({ text: response.data.output, isUser: false });
@@ -315,7 +315,7 @@ const handleDocUploaded = async (event: Event): Promise<void> => {
   formData.append('prompt', `Tolong rangkum resep atau dokumen masakan ini dalam poin-poin yang mudah dibaca.`);
 
   try {
-    const response = await axios.post('http://localhost:3000/generate-from-document', formData, {
+    const response = await api.post('/generate-from-document', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     messages.value.push({ text: response.data.output, isUser: false });

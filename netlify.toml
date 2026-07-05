@@ -1,0 +1,20 @@
+[build]
+  # Build frontend (Vite)
+  command = "npm --prefix recipe-frontend install && npm --prefix recipe-frontend run build"
+  publish = "recipe-frontend/dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  # Redirect API calls to the serverless function
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+[[redirects]]
+  # Catch-all redirect for Single Page Application (SPA) - React Router (if any)
+  from = "/*"
+  to = "/index.html"
+  status = 200
