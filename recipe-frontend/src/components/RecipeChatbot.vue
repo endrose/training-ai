@@ -75,7 +75,7 @@ import { ref, watch } from 'vue';
 import { useQuasar } from 'quasar';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
-import api from 'src/services/api';
+import api from '../services/api.ts';
 
 interface Message {
   text: string;
