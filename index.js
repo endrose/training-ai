@@ -12,7 +12,7 @@ app.use(cors());
 const storage = multer.memoryStorage();
 const upload = multer({
 	storage: storage,
-	limits: { fileSize: 4 * 1024 * 1024 }, // Batasi maksimal file 10MB
+	limits: { fileSize: 2.5 * 1024 * 1024 }, // Batasi maksimal file 10MB
 });
 
 const GEMINI_MODEL = process.env.MODEL || 'gemini-2.5-flash-lite';
