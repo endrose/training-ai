@@ -8,18 +8,16 @@
       </div>
     </div>
 
+    <div class="row justify-center q-mb-lg">
+      <q-btn class="recipe-book-btn" no-caps color="primary" icon="menu_book" label="BUKU RESEP"
+        @click="openRecipeBook" />
+    </div>
+
     <div class="row q-col-gutter-lg q-mb-xl categories-container">
-      <div 
-        v-for="region in regions" 
-        :key="region.id" 
-        class="col-12 col-sm-4"
-      >
-        <q-card 
-          flat 
-          class="region-card cursor-pointer"
+      <div v-for="region in regions" :key="region.id" class="col-12 col-sm-4">
+        <q-card flat class="region-card cursor-pointer"
           :class="['card-' + region.color, { 'active-card': selectedRegion === region.id }]"
-          @click="selectRegion(region.id)"
-        >
+          @click="selectRegion(region.id)">
           <q-card-section class="text-center q-pa-lg">
             <div class="text-h1 q-mb-sm icon-emoji">{{ region.icon }}</div>
             <div class="text-h5 text-weight-bolder">{{ region.name }}</div>
@@ -32,11 +30,7 @@
 
     <div v-if="selectedRegion" class="recipe-results-section q-mt-xl">
       <div class="row q-col-gutter-lg">
-        <div 
-          class="col-6 col-sm-4 col-md-3"
-          v-for="recipe in getRecipes(selectedRegion)" 
-          :key="recipe.name"
-        >
+        <div class="col-6 col-sm-4 col-md-3" v-for="recipe in getRecipes(selectedRegion)" :key="recipe.name">
           <q-card flat class="recipe-card text-center q-pa-md cursor-pointer">
             <div class="text-h3 q-mb-md">{{ recipe.icon }}</div>
             <div class="text-subtitle1 text-weight-bolder recipe-title">{{ recipe.name }}</div>
@@ -44,6 +38,46 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Buku Resep -->
+    <q-dialog v-model="showRecipeBook">
+      <q-card class="recipe-book-dialog">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6 text-weight-bolder">📖 Buku Resep</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pt-sm">
+          <div v-if="isLoadingBook" class="text-center q-pa-lg">
+            <q-spinner-dots color="primary" size="2em" />
+          </div>
+
+          <div v-else-if="bookError" class="text-negative text-center q-pa-md">
+            {{ bookError }}
+          </div>
+
+          <div v-else-if="recipeBookEntries.length === 0" class="text-center text-grey q-pa-md">
+            Belum ada resep yang tersimpan.
+          </div>
+
+          <q-list v-else bordered separator>
+            <q-expansion-item v-for="(entry, index) in recipeBookEntries" :key="index"
+              :label="entry.Prompt || entry.FileName || `Resep #${index + 1}`"
+              :caption="formatTimestamp(entry.Timestamp)" header-class="text-weight-bold">
+              <q-card>
+                <q-card-section>
+                  <div v-if="entry.Endpoint" class="text-caption text-grey-7 q-mb-xs">
+                    {{ entry.Endpoint }}
+                  </div>
+                  <div class="chat-output-text">{{ entry.Output }}</div>
+                </q-card-section>
+              </q-card>
+            </q-expansion-item>
+          </q-list>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
 
     <!-- Floating Chat Button via Component -->
     <RecipeChatbot :current-region="selectedRegion" />
@@ -53,6 +87,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import RecipeChatbot from 'components/RecipeChatbot.vue';
+import api from '../services/api';
 
 interface Region {
   id: string;
@@ -63,7 +98,19 @@ interface Region {
   color: string;
 }
 
+interface RecipeBookEntry {
+  Timestamp?: string;
+  Endpoint?: string;
+  Prompt?: string;
+  Output?: string;
+  FileName?: string;
+}
+
 const selectedRegion = ref<string>('nusantara');
+const showRecipeBook = ref<boolean>(false);
+const isLoadingBook = ref<boolean>(false);
+const bookError = ref<string>('');
+const recipeBookEntries = ref<RecipeBookEntry[]>([]);
 
 const regions = ref<Region[]>([
   { id: 'barat', name: 'BARAT', english: 'WESTERN DISHES', icon: '🍔', desc: 'Beef Stew, Pasta', color: 'blue' },
@@ -71,7 +118,7 @@ const regions = ref<Region[]>([
   { id: 'nusantara', name: 'NUSANTARA', english: 'INDONESIAN', icon: '🍢', desc: 'Beef Stew, Pasta', color: 'lime' }
 ]);
 
-const recipesMap: Record<string, {name: string, icon: string}[]> = {
+const recipesMap: Record<string, { name: string, icon: string }[]> = {
   'nusantara': [
     { name: 'SATAY KACANG (ID)', icon: '🍢' },
     { name: 'BEEF RENDANG', icon: '🍛' },
@@ -99,6 +146,38 @@ const selectRegion = (regionId: string): void => {
 const getRecipes = (regionId: string) => {
   return recipesMap[regionId] || [];
 };
+
+// Format timestamp ISO jadi format tanggal-jam yang lebih mudah dibaca (locale Indonesia)
+const formatTimestamp = (timestamp?: string): string => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return timestamp;
+  return date.toLocaleString('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+};
+
+// Ambil data buku resep dari backend (`/api/recipe-book`), yang di baliknya
+// mengambil dari Google Sheet AI-RECIPE via Apps Script.
+const fetchRecipeBook = async (): Promise<void> => {
+  isLoadingBook.value = true;
+  bookError.value = '';
+
+  try {
+    const response = await api.get('/recipe-book');
+    recipeBookEntries.value = response.data.output || [];
+  } catch (error: any) {
+    bookError.value = error.response?.data?.error || 'Gagal memuat buku resep.';
+  } finally {
+    isLoadingBook.value = false;
+  }
+};
+
+const openRecipeBook = (): void => {
+  showRecipeBook.value = true;
+  fetchRecipeBook();
+};
 </script>
 
 <style scoped>
@@ -108,7 +187,7 @@ const getRecipes = (regionId: string) => {
   font-family: 'Arial Black', Impact, sans-serif;
   color: black;
   background-color: #fcfcfc;
-  background-image: 
+  background-image:
     linear-gradient(#e5e5e5 1px, transparent 1px),
     linear-gradient(90deg, #e5e5e5 1px, transparent 1px);
   background-size: 50px 50px;
@@ -134,6 +213,32 @@ const getRecipes = (regionId: string) => {
   font-size: 2rem;
   letter-spacing: 2px;
   color: black;
+}
+
+.recipe-book-btn {
+  border: 3px solid black;
+  border-radius: 0;
+  font-weight: 900;
+  box-shadow: 4px 4px 0px black;
+  transition: transform 0.1s;
+}
+
+.recipe-book-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px black;
+}
+
+.recipe-book-dialog {
+  width: 500px;
+  max-width: 90vw;
+  max-height: 80vh;
+}
+
+.chat-output-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .region-card {

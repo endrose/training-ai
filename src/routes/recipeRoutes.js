@@ -6,6 +6,7 @@ import {
 	generateFromImage,
 	generateFromDocument,
 	generateFromAudio,
+	getRecipeBook,
 } from '../controllers/recipeController.js';
 
 const router = express.Router();
@@ -29,5 +30,8 @@ router.post(
 	sheetLogger,
 	generateFromAudio,
 );
+
+router.get('/recipe-book', getRecipeBook);
+
 
 export default router;

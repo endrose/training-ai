@@ -10,49 +10,49 @@
       <q-btn class="ask-btn full-width q-mt-sm" color="lime" text-color="black" label="ASK RECIPE" no-caps dense />
     </div>
 
-    <q-card v-if="isOpen" class="chat-window shadow-10 display-flex column">
-      <q-card-section class="bg-primary text-white row items-center q-py-sm">
-        <q-avatar icon="restaurant" color="white" text-color="primary" size="sm" class="q-mr-sm" />
+    <div v-if="isOpen" class="chat-window column">
+      <div class="chat-header row items-center q-py-sm q-px-md no-wrap">
+        <q-avatar icon="restaurant" color="white" text-color="black" size="sm" square class="q-mr-sm avatar-brutal" />
         <div>
-          <div class="text-subtitle2 text-weight-bold">Chef AI</div>
-          <div class="text-caption text-grey-3">Asisten Dapur Anda</div>
+          <div class="text-subtitle2 text-weight-bolder">CHEF AI</div>
+          <div class="text-caption">Asisten Dapur Anda</div>
         </div>
         <q-space />
-        <q-btn dense flat round icon="close" @click="isOpen = false" />
-      </q-card-section>
+        <q-btn dense flat round icon="close" text-color="black" @click="isOpen = false" />
+      </div>
 
-      <q-card-section class="chat-messages col overflow-auto q-pa-md">
+      <div class="chat-messages col overflow-auto q-pa-md">
         <div v-for="(msg, index) in messages" :key="index"
-          :class="['message-wrapper q-mb-sm', msg.isUser ? 'justify-end' : 'justify-start']" class="row">
-          <q-chat-message :sent="msg.isUser" :bg-color="msg.isUser ? 'primary' : 'grey-3'"
-            :text-color="msg.isUser ? 'white' : 'black'">
+          :class="['message-row row q-mb-md', msg.isUser ? 'justify-end' : 'justify-start']">
+          <div :class="['chat-bubble', msg.isUser ? 'bubble-user' : 'bubble-ai']">
             <!-- Pesan user: plain text, tidak perlu di-parse markdown -->
             <div v-if="msg.isUser" class="chat-text-plain">{{ msg.text }}</div>
             <!-- Pesan AI: di-render sebagai markdown (bold, list, heading) agar rapi -->
             <div v-else class="chat-text-markdown" v-html="renderMarkdown(msg.text)"></div>
-          </q-chat-message>
+          </div>
         </div>
         <div v-if="isLoading" class="row justify-start q-mt-sm">
-          <q-spinner-dots color="primary" size="2em" />
+          <div class="chat-bubble bubble-ai">
+            <q-spinner-dots color="black" size="1.5em" />
+          </div>
         </div>
-      </q-card-section>
+      </div>
 
-      <q-separator />
-      <q-card-section class="q-pa-sm row items-center gap-xs no-wrap overflow-auto">
-        <q-btn dense flat round :color="isRecording ? 'red' : 'grey-7'"
-          :icon="isRecording ? 'mic_off' : 'keyboard_voice'" @click="toggleSpeechRecognition">
+      <div class="chat-input-bar q-pa-sm row items-center gap-xs no-wrap overflow-auto">
+        <q-btn dense flat square :color="isRecording ? 'red' : 'black'"
+          :icon="isRecording ? 'mic_off' : 'keyboard_voice'" class="input-icon-btn" @click="toggleSpeechRecognition">
           <q-tooltip>Suara ke Teks (Mic)</q-tooltip>
         </q-btn>
 
-        <q-btn dense flat round color="grey-7" icon="audio_file" @click="triggerAudioUpload">
+        <q-btn dense flat square color="black" icon="audio_file" class="input-icon-btn" @click="triggerAudioUpload">
           <q-tooltip>Upload File Audio (.mp3)</q-tooltip>
         </q-btn>
 
-        <q-btn dense flat round color="grey-7" icon="image" @click="triggerImageUpload">
+        <q-btn dense flat square color="black" icon="image" class="input-icon-btn" @click="triggerImageUpload">
           <q-tooltip>Upload Gambar Masakan</q-tooltip>
         </q-btn>
 
-        <q-btn dense flat round color="grey-7" icon="description" @click="triggerDocUpload">
+        <q-btn dense flat square color="black" icon="description" class="input-icon-btn" @click="triggerDocUpload">
           <q-tooltip>Upload Dokumen Resep</q-tooltip>
         </q-btn>
 
@@ -60,12 +60,12 @@
         <input type="file" ref="imageInput" accept="image/*" style="display: none" @change="handleImageUploaded" />
         <input type="file" ref="docInput" accept=".pdf,.txt" style="display: none" @change="handleDocUploaded" />
 
-        <q-input v-model="inputMessage" dense outlined placeholder="Tanya resep / langkah masak..." class="col"
-          @keyup.enter="sendTextMessage" />
+        <q-input v-model="inputMessage" dense outlined square placeholder="Tanya resep / langkah masak..."
+          class="col chat-input-field" @keyup.enter="sendTextMessage" />
 
-        <q-btn flat round color="primary" icon="send" @click="sendTextMessage" />
-      </q-card-section>
-    </q-card>
+        <q-btn flat square color="lime" text-color="black" icon="send" class="send-btn" @click="sendTextMessage" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -298,11 +298,13 @@ const handleDocUploaded = async (event: Event): Promise<void> => {
 .chat-window {
   width: 350px;
   height: 450px;
-  border-radius: 16px;
   overflow: hidden;
   background-color: #ffffff;
   display: flex;
   flex-direction: column;
+  border: 4px solid black;
+  border-radius: 0;
+  box-shadow: 8px 8px 0px black;
 }
 
 @media (max-width: 600px) {
@@ -317,13 +319,90 @@ const handleDocUploaded = async (event: Event): Promise<void> => {
   .chatbot-container.is-open .chat-window {
     width: 100vw;
     height: 100vh;
-    border-radius: 0;
+    border: none;
+    box-shadow: none;
   }
 }
 
+.chat-header {
+  background-color: #ff5e00;
+  color: black;
+  border-bottom: 4px solid black;
+}
+
+.avatar-brutal {
+  border: 2px solid black;
+}
+
 .chat-messages {
-  background-color: #f7f9fa;
+  background-color: #fcfcfc;
+  background-image:
+    linear-gradient(#eaeaea 1px, transparent 1px),
+    linear-gradient(90deg, #eaeaea 1px, transparent 1px);
+  background-size: 24px 24px;
   flex: 1;
+}
+
+.chat-bubble {
+  max-width: 78%;
+  padding: 10px 14px;
+  border: 3px solid black;
+  border-radius: 0;
+  box-shadow: 4px 4px 0px black;
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.bubble-user {
+  background-color: #2940ff;
+  color: white;
+}
+
+.bubble-ai {
+  background-color: #ffffff;
+  color: black;
+}
+
+.chat-input-bar {
+  background-color: #fcfcfc;
+  border-top: 4px solid black;
+}
+
+.input-icon-btn {
+  border: 2px solid black;
+  border-radius: 0;
+  background-color: white;
+  box-shadow: 2px 2px 0px black;
+  transition: transform 0.1s;
+}
+
+.input-icon-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px black;
+}
+
+.chat-input-field :deep(.q-field__control) {
+  border: 2px solid black !important;
+  border-radius: 0 !important;
+  background-color: white;
+}
+
+.chat-input-field :deep(.q-field__control):before,
+.chat-input-field :deep(.q-field__control):after {
+  border: none !important;
+}
+
+.send-btn {
+  border: 2px solid black;
+  border-radius: 0;
+  box-shadow: 2px 2px 0px black;
+  transition: transform 0.1s;
+}
+
+.send-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px black;
 }
 
 .gap-sm {

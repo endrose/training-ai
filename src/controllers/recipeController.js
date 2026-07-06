@@ -4,6 +4,7 @@ import {
 	extractErrorMessage,
 } from '../services/geminiService.js';
 import { SUPPORTED_DOCUMENT_MIMETYPES } from '../middleware/upload.js';
+import { getRecipeBookFromSheet } from '../services/sheetLogService.js';
 
 export const generateText = async (req, res) => {
 	const { prompt } = req.body;
@@ -78,6 +79,23 @@ export const generateFromAudio = async (req, res) => {
 		console.error(error);
 		res.status(error.status || 500).json({
 			error: extractErrorMessage(error, 'An error occurred while processing the audio.'),
+		});
+	}
+};
+
+
+/**
+ * Ambil "Buku Resep": riwayat seluruh interaksi AI yang tersimpan
+ * di Google Sheet AI-RECIPE, untuk ditampilkan di frontend.
+ */
+export const getRecipeBook = async (req, res) => {
+	try {
+		const data = await getRecipeBookFromSheet();
+		res.json({ output: data });	
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			error: extractErrorMessage(error, 'Gagal mengambil buku resep.'),
 		});
 	}
 };
