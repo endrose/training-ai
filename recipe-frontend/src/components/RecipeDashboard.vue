@@ -63,14 +63,12 @@
 
           <q-list v-else bordered separator>
             <q-expansion-item v-for="(entry, index) in recipeBookEntries" :key="index"
-              :label="entry.Prompt || entry.FileName || `Resep #${index + 1}`"
-              :caption="formatTimestamp(entry.Timestamp)" header-class="text-weight-bold">
+              :label="getDisplayQuestion(entry)" :caption="formatTimestamp(entry.Timestamp)"
+              header-class="text-weight-bold">
               <q-card>
                 <q-card-section>
-                  <div v-if="entry.Endpoint" class="text-caption text-grey-7 q-mb-xs">
-                    {{ entry.Endpoint }}
-                  </div>
-                  <div class="chat-output-text">{{ entry.Output }}</div>
+               
+                  <div class="chat-text-markdown" v-html="renderMarkdown(entry.Output)"></div>
                 </q-card-section>
               </q-card>
             </q-expansion-item>
@@ -86,6 +84,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import MarkdownIt from 'markdown-it';
+import DOMPurify from 'dompurify';
 import RecipeChatbot from 'components/RecipeChatbot.vue';
 import api from '../services/api';
 
@@ -103,7 +103,8 @@ interface RecipeBookEntry {
   Endpoint?: string;
   Prompt?: string;
   Output?: string;
-  FileName?: string;
+  'File Name'?: string;
+  Error?: string;
 }
 
 const selectedRegion = ref<string>('nusantara');
@@ -147,6 +148,14 @@ const getRecipes = (regionId: string) => {
   return recipesMap[regionId] || [];
 };
 
+// Markdown renderer untuk output AI (sama seperti di chatbot) supaya
+// bold/list/heading dari Gemini tampil rapi di buku resep juga.
+const md = new MarkdownIt({ breaks: true, linkify: true });
+const renderMarkdown = (text?: string): string => {
+  const rawHtml = md.render(text ?? '');
+  return DOMPurify.sanitize(rawHtml);
+};
+
 // Format timestamp ISO jadi format tanggal-jam yang lebih mudah dibaca (locale Indonesia)
 const formatTimestamp = (timestamp?: string): string => {
   if (!timestamp) return '';
@@ -156,6 +165,32 @@ const formatTimestamp = (timestamp?: string): string => {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+};
+
+// Prompt yang tersimpan berisi teks mentah lengkap, contoh:
+// "Context Kategori Kulinari: nusantara. Pertanyaan: saya mau resep nasi
+// goreng mengkudu. Jawab dengan singkat, ramah, dan format yang rapi."
+// Fungsi ini mengekstrak hanya bagian pertanyaan aslinya, supaya judul
+// entry di buku resep bersih dan enak dibaca, tidak menampilkan prompt
+// instruksi internal ke AI.
+const extractQuestion = (prompt?: string): string | null => {
+  if (!prompt) return null;
+
+  const match = prompt.match(/Pertanyaan:\s*(.*?)(?:\.\s*Jawab dengan|$)/is);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+
+  return prompt;
+};
+
+// Tentukan label yang ditampilkan sebagai judul entry buku resep:
+// prioritas pertanyaan hasil ekstraksi > nama file yang diupload > fallback nomor urut.
+const getDisplayQuestion = (entry: RecipeBookEntry): string => {
+  const question = extractQuestion(entry.Prompt);
+  if (question) return question;
+  if (entry['File Name']) return `📎 ${entry['File Name']}`;
+  return 'Resep tanpa judul';
 };
 
 // Ambil data buku resep dari backend (`/api/recipe-book`), yang di baliknya
@@ -234,11 +269,32 @@ const openRecipeBook = (): void => {
   max-height: 80vh;
 }
 
-.chat-output-text {
-  white-space: pre-wrap;
-  word-break: break-word;
+.chat-text-markdown {
   font-size: 14px;
   line-height: 1.5;
+  word-break: break-word;
+}
+
+.chat-text-markdown :deep(p) {
+  margin: 0 0 8px 0;
+}
+
+.chat-text-markdown :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.chat-text-markdown :deep(strong) {
+  font-weight: 700;
+}
+
+.chat-text-markdown :deep(ul),
+.chat-text-markdown :deep(ol) {
+  margin: 4px 0 8px 0;
+  padding-left: 20px;
+}
+
+.chat-text-markdown :deep(li) {
+  margin-bottom: 4px;
 }
 
 .region-card {
