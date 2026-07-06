@@ -4,7 +4,7 @@
       <div class="row items-center no-wrap">
         <span class="text-h4 q-mr-sm">🤖</span>
         <div class="column text-left text-black">
-          <span class="text-weight-bolder text-h6" style="line-height: 1;">AI CHAT</span>
+          <span class="text-weight-bolder text-h6" style="line-height: 1;">AI CHEF</span>
         </div>
       </div>
       <q-btn class="ask-btn full-width q-mt-sm" color="lime" text-color="black" label="ASK RECIPE" no-caps dense />
@@ -14,7 +14,7 @@
       <q-card-section class="bg-primary text-white row items-center q-py-sm">
         <q-avatar icon="restaurant" color="white" text-color="primary" size="sm" class="q-mr-sm" />
         <div>
-          <div class="text-subtitle2 text-weight-bold">Chef Gemini AI</div>
+          <div class="text-subtitle2 text-weight-bold">Chef AI</div>
           <div class="text-caption text-grey-3">Asisten Dapur Anda</div>
         </div>
         <q-space />
@@ -58,8 +58,7 @@
 
         <input type="file" ref="audioInput" accept="audio/*" style="display: none" @change="handleAudioUploaded" />
         <input type="file" ref="imageInput" accept="image/*" style="display: none" @change="handleImageUploaded" />
-        <input type="file" ref="docInput" accept=".pdf,.doc,.docx,.txt" style="display: none"
-          @change="handleDocUploaded" />
+        <input type="file" ref="docInput" accept=".pdf,.txt" style="display: none" @change="handleDocUploaded" />
 
         <q-input v-model="inputMessage" dense outlined placeholder="Tanya resep / langkah masak..." class="col"
           @keyup.enter="sendTextMessage" />
